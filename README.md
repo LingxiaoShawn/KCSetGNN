@@ -1,1 +1,1 @@
-# KCSetGNN
+# (k,c)(<=)-SetGNN
