@@ -55,7 +55,7 @@ def set_cfg(cfg):
     cfg.model.hidden_size = 128
     # Number of gnn layers (doesn't include #MLPs)
     cfg.model.num_layers = 4
-    cfg.model.num_inners = 1
+    cfg.model.num_inners = 2
     # Pooling type for generaating graph/subgraph embedding from node embeddings 
     cfg.model.pool = 'add'
 
@@ -70,7 +70,7 @@ def set_cfg(cfg):
     cfg.subgraph.kmin = 0
     cfg.subgraph.stack = True
     cfg.subgraph.num_components = 1
-    cfg.subgraph.zero_init = False # whether init multiple-components sets with 0
+    cfg.subgraph.zero_init = True # whether init multiple-components sets with 0
 
     return cfg
     
