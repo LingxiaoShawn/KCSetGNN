@@ -148,7 +148,7 @@ class GraphToSubgraphs(nn.Module):
         self.num_nodes_encoder.reset_parameters()
         self.out_encoder.reset_parameters()
 
-    def forward(self, x, edge_attr, subgraphs_x, data):
+    def forward(self, x, edge_attr, data):
         ### graph_x => subgraphs_x
         subgraphs_x = x[data.subgraphs_nodes_mapper] # lift up the embeddings, positional encoding
         # else: # use previous subgraphs x

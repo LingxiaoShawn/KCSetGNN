@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch_geometric.nn as gnn
-from core.model_utils.elements import MLP, MultiHeadAttention
+from core.model.model_utils.elements import MLP
 import torch.nn.functional as F
 
 class GINEConv(nn.Module):

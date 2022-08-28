@@ -1,7 +1,7 @@
 # PPGN layer
 import torch 
 import torch.nn as nn
-from core.model_utils.elements import MLP, Identity
+from core.model.model_utils.elements import MLP, Identity
 
 class PPGNLayer(nn.Module):
     def __init__(self, nin, nout, nlayer, depth_of_mlp=2):
