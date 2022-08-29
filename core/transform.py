@@ -139,10 +139,10 @@ class Subgraphs(BaseTransform):
 
 
 class KCSetWLSubgraphs(Subgraphs):
-    def __init__(self, k_max=5, return_previous=False, k_min=0, num_components=1, zero_init=False):
+    def __init__(self, k_max=5, stack=False, k_min=0, num_components=1, zero_init=False):
         super().__init__()
         self.k_max = k_max
-        self.return_previous = return_previous
+        self.stack = stack
         self.k_min = k_min 
         self.max_components = num_components
         self.zero_init=zero_init
@@ -150,7 +150,7 @@ class KCSetWLSubgraphs(Subgraphs):
     def extract_subgraphs(self, data):
         # assert self.k_max < data.num_nodes
         # k = max(2, min(self.k_max, data.num_nodes-1)) # deal with k_max (can later set it as a fraction of number of nodes)
-        k_tuples, bipartite_graph = extract_k_tuples(data.edge_index, data.num_nodes, self.k_max, self.k_min, self.return_previous, self.max_components, self.zero_init)
+        k_tuples, bipartite_graph = extract_k_tuples(data.edge_index, data.num_nodes, self.k_max, self.k_min, self.stack, self.max_components, self.zero_init)
         assert len(k_tuples) > 0
         # print(bipartite_graph.shape)
         node_mask = data.edge_index.new_empty((len(k_tuples), data.num_nodes), dtype=torch.bool)
