@@ -139,7 +139,7 @@ class Subgraphs(BaseTransform):
 
 
 class KCSetWLSubgraphs(Subgraphs):
-    def __init__(self, k_max=5, stack=False, k_min=0, num_components=1, zero_init=False):
+    def __init__(self, k_max=5, stack=True, k_min=0, num_components=1, zero_init=False):
         super().__init__()
         self.k_max = k_max
         self.stack = stack
