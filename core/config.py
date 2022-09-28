@@ -48,7 +48,7 @@ def set_cfg(cfg):
     # ------------------------------------------------------------------------ #
     cfg.model = CN()
     # GNN type used, see core.model_utils.pyg_gnn_wrapper for all options
-    cfg.model.arch_type = 'KCSetGNN'  #[''SubgraphGNN', 'kWLGNN', 'PPGN']
+    cfg.model.arch_type = 'KCSetGNN'  #[''SubgraphGNN', 'KCSetGNN', 'PPGN']
     cfg.model.gnn_type = 'GINEConv' # change to list later
     cfg.model.bgnn_type = 'Sequential'  # bipartite gnn propagation type
     # Hidden size of the model
@@ -66,7 +66,7 @@ def set_cfg(cfg):
     # ------------------------------------------------------------------------ #
     cfg.subgraph = CN()
     cfg.subgraph.type = 'kWL' # ['kWL', 'cluster', 'ego']
-    cfg.subgraph.kmax = 5
+    cfg.subgraph.kmax = 3
     cfg.subgraph.kmin = 0
     cfg.subgraph.stack = True
     cfg.subgraph.num_components = 1

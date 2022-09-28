@@ -138,14 +138,15 @@ class GraphCountDataset(InMemoryDataset):
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
 
-from core.data_utils.cfi import create_cfi
+from core.data_utils.cfi import create_cfi, create_grohe_cfi
 from torch_geometric.utils import from_networkx
 
 class CFI(InMemoryDataset):
-    def __init__(self, root='data', kmin=3, kmax=10, transform=None, pre_transform=None):
+    def __init__(self, root='data', kmin=3, kmax=10, transform=None, pre_transform=None, grohe=False):
         self.kmax = kmax
         self.kmin = kmin
-        super().__init__(f'{root}/CFI/{kmin}-{kmax}', transform, pre_transform)
+        self.grohe = grohe
+        super().__init__(f'{root}/CFI/{kmin}-{kmax}-grohe[{grohe}]', transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
 
     @property
@@ -158,9 +159,8 @@ class CFI(InMemoryDataset):
 
     def download(self):
         # Download to `self.raw_dir`.
-        graphs = {}
         for k in range(self.kmin, self.kmax+1):
-            G, H = create_cfi(k)
+            G, H = create_grohe_cfi(k) if self.grohe else create_cfi(k)
             nx.write_gpickle(G, f"{self.raw_dir}/G_{k}.gpickle")
             nx.write_gpickle(H, f"{self.raw_dir}/H_{k}.gpickle")
     

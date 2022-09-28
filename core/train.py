@@ -9,7 +9,8 @@ def run(cfg, create_dataset, create_model, train, test, evaluator=None, use_amp=
         set_random_seed(cfg.seed)
         cfg.train.runs = 1 # no need to run same seed multiple times 
 
-    torch.cuda.set_device(cfg.device)
+    if cfg.device != 'cpu':
+        torch.cuda.set_device(cfg.device)
     # set num threads
     torch.set_num_threads(cfg.num_workers)
 
@@ -27,6 +28,7 @@ def run(cfg, create_dataset, create_model, train, test, evaluator=None, use_amp=
     test_perfs = []
     vali_perfs = []
     train_losses = []
+
     for run in range(1, cfg.train.runs+1):
         # 3. create model and opt
         model = create_model(cfg).to(cfg.device)
@@ -47,8 +49,11 @@ def run(cfg, create_dataset, create_model, train, test, evaluator=None, use_amp=
             model.train()
             train_loss = train(train_loader, model, optimizer, device=cfg.device, scaler=scaler)
             scheduler.step() # important!!!
-            memory_allocated = torch.cuda.max_memory_allocated(cfg.device) // (1024 ** 2)
-            memory_reserved = torch.cuda.max_memory_reserved(cfg.device) // (1024 ** 2)
+            if cfg.device != 'cpu':
+                memory_allocated = torch.cuda.max_memory_allocated(cfg.device) // (1024 ** 2)
+                memory_reserved = torch.cuda.max_memory_reserved(cfg.device) // (1024 ** 2)
+            else:
+                memory_allocated = memory_reserved = 0
             # print(f"---{test(train_loader, model, evaluator=evaluator, device=cfg.device) }")
 
             # with torch.cuda.amp.autocast(enabled=use_amp):

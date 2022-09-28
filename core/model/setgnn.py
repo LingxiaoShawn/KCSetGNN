@@ -31,7 +31,7 @@ class KCSetGNN(nn.Module):
         self.bipartite_gnn = BipartiteGNN(nhid, nhid, nlayer_inter, mlp_layers=mlp_layers, type=bgnn_type, 
                                           dropout=dropout, bias=True, pooling=pooling, num_bipartites=num_bipartites, half_step=half_step)
         # output
-        self.output_decoder0 = MLP(nhid, nhid, nlayer=1, with_final_activation=True) # MarK 2-> 1
+        self.output_decoder0 = MLP(2*nhid, nhid, nlayer=1, with_final_activation=True) # MarK 2-> 1
         self.output_decoder = MLP((num_bipartites+1)*(nhid), nout, nlayer=2, with_final_activation=False, n_hid=nhid)
         
         self.num_bipartites = num_bipartites
@@ -70,27 +70,31 @@ class KCSetGNN(nn.Module):
             dis = data.pos[data.edge_index[0]] - data.pos[data.edge_index[1]]
             edge_attr = edge_attr + self.pos_encoder(dis.abs())
             
-        # get init color of k-tuples
+        # get init color of k-sets
         x, subgraphs = self.subgraph_encoder(x, edge_attr, data)
     
-        # message passing among k-tuple graphs.
+        # message passing among k-set graphs.
         subgraphs = self.bipartite_gnn(subgraphs, data.ks, [getattr(data, f'bipartite_{i}') for i in range(data.ks.max())], x)
         
-        # generate graph embedding based on all k-tuples. 
+        # generate graph embedding based on all k-sets. 
         num_graphs = data.batch[-1]+1
         batch_subgraphs = torch.arange(num_graphs, device=x.device)
         batch_subgraphs = batch_subgraphs.repeat_interleave(data.num_subgraphs)
+        # aggregate to graph level representation 
+        kmax = self.num_bipartites + 1
+        within_graph_kbatch = data.ks + batch_subgraphs * kmax
+
+        max_info = subgraphs.new_zeros((num_graphs*kmax, subgraphs.size(-1)))
+        scatter(subgraphs, within_graph_kbatch,  dim=0, reduce='max', out=max_info)
 
         # gate mechanism, to balance scale by learning
         kc_encoding = torch.cat([self.num_nodes_encoder(data.ks), self.num_components_encoder(data.num_components)], dim=-1)
         subgraphs = subgraphs * self.kc_gate(kc_encoding)
 
-        # aggregate to graph level representation 
-        kmax = self.num_bipartites + 1
-        within_graph_kbatch = data.ks + batch_subgraphs * kmax
-        x0 = subgraphs.new_zeros((num_graphs*kmax, subgraphs.size(-1)))
-        scatter(subgraphs, within_graph_kbatch,  dim=0, reduce=self.pooling, out=x0)
-        x = self.output_decoder0(x0).reshape(num_graphs, -1) # num_graphs x (kmax*nhid)
+        sum_info = subgraphs.new_zeros((num_graphs*kmax, subgraphs.size(-1)))
+        scatter(subgraphs, within_graph_kbatch,  dim=0, reduce=self.pooling, out=sum_info)
+
+        x = self.output_decoder0(torch.cat([max_info, sum_info], -1)).reshape(num_graphs, -1) # num_graphs x (kmax*nhid)
         return self.output_decoder(x) 
 
 class BaseGNN(nn.Module):
@@ -168,11 +172,11 @@ class GraphToSubgraphs(nn.Module):
         # subgraphs_x => subgraphs
         subgraphs = scatter(subgraphs_x, subgraphs_batch, dim=0, reduce='add')
 
-        # deal with tuples with >1 number of components [TODO: currently only support add pooling]
+        # deal with sets with >1 number of components [TODO: currently only support add pooling]
         full_subgraphs = subgraphs.new_zeros((len(data.num_components), subgraphs.size(-1)))
         full_subgraphs[data.num_components==1] = subgraphs
         if hasattr(data, 'components_graph'):
-            # inference tuples with multiple components
+            # inference sets with multiple components
             scatter(full_subgraphs[data.components_graph[0]], data.components_graph[1], dim=0, reduce='add', out=full_subgraphs) 
 
         if data.ks.max() > 1:

@@ -2,18 +2,23 @@
 import torch 
 import torch.nn as nn
 from core.model.model_utils.elements import MLP, Identity
+import torch.nn.functional as F
 
 class PPGNLayer(nn.Module):
     def __init__(self, nin, nout, nlayer, depth_of_mlp=2):
         super().__init__()
         # First part - sequential mlp blocks
+        self.combine_node_edge = nn.Linear(2*nin, nin)
         self.reg_blocks = nn.ModuleList([RegularBlock(nin, nin, depth_of_mlp) for i in range(nlayer)])
         # Second part
         # self.norm = Identity() # 
-        self.norm = nn.BatchNorm1d(2*nin)
-        self.output_encoder = MLP(2*nin, nout, nlayer=depth_of_mlp, with_final_activation=True)
+        # self.norm = nn.BatchNorm1d(2*nin)
+        self.norm = Identity()
+        self.output_encoder = MLP(3*nin, nout, nlayer=depth_of_mlp, with_final_activation=True)
+        # self.output_encoder = MLP(2*nin, nout, nlayer=depth_of_mlp, with_final_activation=True)
 
     def reset_parameters(self):
+        self.combine_node_edge.reset_parameters()
         self.norm.reset_parameters()
         self.output_encoder.reset_parameters()
         for reg in self.reg_blocks:
@@ -25,9 +30,15 @@ class PPGNLayer(nn.Module):
         ### TODO: for PPGN-AK we need to make N_max smaller, by make batch hasing more disconnected component
 
         # combine x and adj 
+        x_mat = torch.zeros_like(adj)
         idx_tmp = range(x.size(1))
-        adj[:, idx_tmp, idx_tmp, :] = x
-        x = torch.transpose(adj, 1, 3) # B x F x N_max x N_max 
+        x_mat[:, idx_tmp, idx_tmp, :] = x
+        # adj[:, idx_tmp, idx_tmp, :] = x
+        # print(x_mat.shape, adj.shape)
+        # torch.cat([x_mat, adj], dim=-1)
+        # exit(0)
+        x = self.combine_node_edge(torch.cat([x_mat, adj], dim=-1))
+        x = torch.transpose(x, 1, 3) # B x F x N_max x N_max 
 
         # create new mask 
         mask_adj = mask_x.unsqueeze(2) * mask_x.unsqueeze(1) # Bx N_max x N_max
@@ -38,8 +49,12 @@ class PPGNLayer(nn.Module):
 
         # 2nd order to 1st order matrix
         diag_x = x[:, :, idx_tmp, idx_tmp] # B x F x N_max
-        offdiag_x = x.sum(dim=-1) - diag_x # B x F x N_max,  use summation here, can change to mean or max. 
-        x = torch.cat([diag_x, offdiag_x], dim=1).transpose(1, 2) # B x N_max x 2F
+        x[:, :, idx_tmp, idx_tmp] = 0
+        offdiag_x_max = x.max(dim=-1)[0] # B x F x N_max,  use summation here, can change to mean or max.
+        # offdiag_x_max = x.mean(dim=-1)
+        offdiag_x_mean = x.mean(dim=-1)
+        x = torch.cat([diag_x, offdiag_x_max, offdiag_x_mean], dim=1).transpose(1, 2) # B x N_max x 2F
+        # x = torch.cat([diag_x, offdiag_x_mean], dim=1).transpose(1, 2)
 
         # to sparse x 
         x = x.reshape(-1, x.size(-1))[mask_x.reshape(-1)] # BN x F

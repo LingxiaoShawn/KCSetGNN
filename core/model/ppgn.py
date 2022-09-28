@@ -9,7 +9,7 @@ class PPGN(nn.Module):
         self.input_encoder = DiscreteEncoder(nhid) if nfeat_node is None else MLP(nfeat_node, 1)
         self.edge_encoder = DiscreteEncoder(nhid) if nfeat_edge is None else MLP(nfeat_edge, nhid, 1)
         self.layer = PPGNLayer(nhid, nhid, nlayer, depth_of_mlp=2)
-        self.output_encoder = MLP(nhid, nout, nlayer=2, with_final_activation=False, with_norm=False if pooling=='mean' else True)
+        self.output_encoder = MLP(nhid, nout, nlayer=2, with_final_activation=False)
 
     def reset_parameters(self):
         self.input_encoder.reset_parameters()
