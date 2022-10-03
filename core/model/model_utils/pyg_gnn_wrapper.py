@@ -43,7 +43,7 @@ class GCNConv(nn.Module):
 from torch_scatter import scatter
 from torch_geometric.utils import degree
 class SimplifiedPNAConv(gnn.MessagePassing):
-    def __init__(self, nin, nout, bias=True, aggregators=['mean'], **kwargs): # ['mean', 'min', 'max', 'std'],
+    def __init__(self, nin, nout, bias=True, aggregators=['mean', 'min', 'max', 'std'], **kwargs): # ['mean', 'min', 'max', 'std'],
         kwargs.setdefault('aggr', None)
         super().__init__(node_dim=0, **kwargs)
         self.aggregators = aggregators

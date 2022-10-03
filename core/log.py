@@ -13,7 +13,7 @@ def config_logger(cfg, OUT_PATH="results/", time=False):
     config_string = f'V1 T[{cfg.task}] Sub[{cfg.subgraph.type}-{cfg.subgraph.kmax}-{cfg.subgraph.kmin}-{cfg.subgraph.stack}-{cfg.subgraph.num_components}] ZeroInit[{cfg.subgraph.zero_init}] '\
                     f'GNN[{cfg.model.arch_type}-{cfg.model.gnn_type}-{cfg.model.bgnn_type}-{cfg.model.half_step}] '\
                     f'L[{cfg.model.num_layers}-{cfg.model.num_inners}] '\
-                    f'H[{cfg.model.hidden_size}] Pool[{cfg.model.pool}] '\
+                    f'H[{cfg.model.hidden_size}] Pool[{cfg.model.pools}] '\
                     f'Reg[{cfg.train.dropout}-{cfg.train.wd}] Seed[{cfg.seed}] GPU[{cfg.device}]'
     
     # setup tensorboard writer

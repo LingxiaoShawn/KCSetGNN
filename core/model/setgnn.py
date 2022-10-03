@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import scatter
+from core.model.model_utils.generalized_scatter import generalized_scatter
 import core.model.model_utils.pyg_gnn_wrapper as gnn_wrapper 
 from core.model.model_utils.elements import MLP, DiscreteEncoder, Identity, BN
 from core.model.model_utils.ppgn import PPGNLayer
@@ -13,7 +14,7 @@ class KCSetGNN(nn.Module):
                     nlayer_intra, nlayer_inter, gnn_type, bgnn_type,
                     dropout=0, 
                     res=True, 
-                    pooling='add',
+                    pools=['add'], # notice that pools now is only used for Bipartite Propagation. All others are fixed.
                     mlp_layers=2,
                     num_bipartites=1,
                     half_step=False):
@@ -25,17 +26,24 @@ class KCSetGNN(nn.Module):
         self.pos_encoder = MLP(3, nhid, 1)
 
         # encode subgraphs 
-        self.subgraph_encoder = GraphToSubgraphs(nhid, nlayer_intra, mlp_layers, gnn_type, dropout, pooling)
+        self.subgraph_encoder = GraphToSubgraphs(nhid, nlayer_intra, mlp_layers, gnn_type, dropout)
 
         # propagate among subgraphs
-        self.bipartite_gnn = BipartiteGNN(nhid, nhid, nlayer_inter, mlp_layers=mlp_layers, type=bgnn_type, 
-                                          dropout=dropout, bias=True, pooling=pooling, num_bipartites=num_bipartites, half_step=half_step)
+        self.bipartite_gnn = BipartiteGNN(nhid, nhid, 
+                                          nlayer_inter, 
+                                          mlp_layers=mlp_layers, 
+                                          type=bgnn_type, 
+                                          dropout=dropout, 
+                                          bias=True, 
+                                          pools=pools, 
+                                          num_bipartites=num_bipartites, 
+                                          half_step=half_step)
         # output
         self.output_decoder0 = MLP(2*nhid, nhid, nlayer=1, with_final_activation=True) # MarK 2-> 1
         self.output_decoder = MLP((num_bipartites+1)*(nhid), nout, nlayer=2, with_final_activation=False, n_hid=nhid)
         
         self.num_bipartites = num_bipartites
-        self.pooling = pooling
+        self.pools = pools
 
         self.num_components_encoder = DiscreteEncoder(encoding_dim, max_num_values=20)
         self.num_nodes_encoder = DiscreteEncoder(encoding_dim, max_num_values=20)
@@ -84,15 +92,10 @@ class KCSetGNN(nn.Module):
         kmax = self.num_bipartites + 1
         within_graph_kbatch = data.ks + batch_subgraphs * kmax
 
-        max_info = subgraphs.new_zeros((num_graphs*kmax, subgraphs.size(-1)))
-        scatter(subgraphs, within_graph_kbatch,  dim=0, reduce='max', out=max_info)
-
         # gate mechanism, to balance scale by learning
         kc_encoding = torch.cat([self.num_nodes_encoder(data.ks), self.num_components_encoder(data.num_components)], dim=-1)
-        subgraphs = subgraphs * self.kc_gate(kc_encoding)
-
-        sum_info = subgraphs.new_zeros((num_graphs*kmax, subgraphs.size(-1)))
-        scatter(subgraphs, within_graph_kbatch,  dim=0, reduce=self.pooling, out=sum_info)
+        max_info = scatter(subgraphs, within_graph_kbatch, dim=0, dim_size=num_graphs*kmax, reduce='max')
+        sum_info = scatter(subgraphs * self.kc_gate(kc_encoding), within_graph_kbatch, dim=0, dim_size=num_graphs*kmax, reduce='add')
 
         x = self.output_decoder0(torch.cat([max_info, sum_info], -1)).reshape(num_graphs, -1) # num_graphs x (kmax*nhid)
         return self.output_decoder(x) 
@@ -129,7 +132,7 @@ class BaseGNN(nn.Module):
         return x
 
 class GraphToSubgraphs(nn.Module):
-    def __init__(self, nhid, nlayer, mlp_layers, gnn_type, dropout=0, pooling='add'):
+    def __init__(self, nhid, nlayer, mlp_layers, gnn_type, dropout=0):
         super().__init__()
         encoding_dim = 16
         encoding_dim = 0
@@ -138,11 +141,10 @@ class GraphToSubgraphs(nn.Module):
         else:
             self.subgraphs_conv = BaseGNN(nhid, nhid, nlayer, gnn_type, mlp_layers=mlp_layers, dropout=dropout, res=True)
 
-        self.num_components_encoder = DiscreteEncoder(encoding_dim if encoding_dim>0 else nhid, max_num_values=10)
-        self.num_nodes_encoder = DiscreteEncoder(encoding_dim if encoding_dim>0 else nhid, max_num_values=10)
+        self.num_components_encoder = DiscreteEncoder(encoding_dim if encoding_dim>0 else nhid, max_num_values=20)
+        self.num_nodes_encoder = DiscreteEncoder(encoding_dim if encoding_dim>0 else nhid, max_num_values=20)
         self.out_encoder =  MLP(nhid+2*encoding_dim, nhid, nlayer=1, with_final_activation=True)
 
-        self.pooling = pooling
         self.dropout = dropout
         self.encoding_dim = encoding_dim
 
@@ -177,11 +179,12 @@ class GraphToSubgraphs(nn.Module):
         full_subgraphs[data.num_components==1] = subgraphs
         if hasattr(data, 'components_graph'):
             # inference sets with multiple components
+            # TODO: the current version is simple add which mimicing message passing GNNs, need to test more powerful set encoder
             scatter(full_subgraphs[data.components_graph[0]], data.components_graph[1], dim=0, reduce='add', out=full_subgraphs) 
 
-        if data.ks.max() > 1:
-            # only do it for large number of ks. To avoid do this for no stacking setting.
-            full_subgraphs = full_subgraphs / (data.ks+1).float().unsqueeze(1)
+        # if data.ks.max() > 1:
+        #     # only do it for large number of ks. To avoid do this for no stacking setting.
+        full_subgraphs = full_subgraphs / (data.ks+1).float().unsqueeze(1)
         if self.encoding_dim ==0:
             subgraphs = full_subgraphs + self.num_nodes_encoder(data.ks) + self.num_components_encoder(data.num_components)
         else:

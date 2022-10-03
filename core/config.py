@@ -56,9 +56,8 @@ def set_cfg(cfg):
     # Number of gnn layers (doesn't include #MLPs)
     cfg.model.num_layers = 4
     cfg.model.num_inners = 2
-    # Pooling type for generaating graph/subgraph embedding from node embeddings 
-    cfg.model.pool = 'add'
-
+    # Pooling type for generaating graph/subgraph embedding from node embeddings
+    cfg.model.pools = ['add']    # multiple different aggregations, will be used by SetGNN to stablize training
     cfg.model.half_step = False # bipartite propagation type 
 
     # ------------------------------------------------------------------------ #
