@@ -1,0 +1,15 @@
+dataset: ZINC
+num_workers: 12
+model:
+  num_layers: 2
+  num_inners: 4
+  half_step: False
+  pools: [add]
+train:
+  epochs: 310
+  batch_size: 100
+subgraph:
+  kmin: 0
+  kmax: 2
+  zero_init: True
+  num_components: 1

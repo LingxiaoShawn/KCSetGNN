@@ -1,0 +1,20 @@
+dataset: cfi
+model:
+  arch_type: KCSetGNN
+  bgnn_type: Sequential
+  gnn_type: GINEConv
+  half_step: False 
+  hidden_size: 128
+  num_layers: 2
+  num_inners: 4
+  pools: [add]
+subgraph:
+  type: kWL
+  stack: True
+  num_components: 1
+  kmax: 3
+  zero_init: False
+train:
+  lr: 0.001
+  epochs: 305
+  runs: 1
