@@ -53,15 +53,17 @@ pip install matplotlib
 ## Run (k,c)(<=)SetGNN
 ```
 python -m train.zinc model.num_layers 2 model.num_inners 4 subgraph.kmax 5 subgraph.num_components 1 model.bgnn_type 'Parallel'  device 0 
-
-
 ```
 
 ## Run (k,c)(<=)SetGNN*
 ```
 python -m train.zinc model.num_layers 2 model.num_inners 4 subgraph.kmax 5 subgraph.num_components 1 model.bgnn_type 'Sequential'  device 0
+```
 
-
+## Change Aggregation Operations for Biparatite Message Passing 
+```
+python -m train.zinc model.pools "['add','max']"
+python -m train.zinc model.pools "['add']"
 ```
 
 ## Cite
