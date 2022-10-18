@@ -120,9 +120,9 @@ class Subgraphs(BaseTransform):
             if len(bipartite_graph) == 3:
                 counts, bipartites, num_components = bipartite_graph
             else:
-                # record components graph: every tuple with multiple components has connections 
-                # for a tuple with multiple components (nc), it will connects to nc different 
-                # tuples, and each this kind of tuple has only one component. 
+                # record components graph: every set with multiple components has connections 
+                # for a set with multiple components (nc), it will connects to nc different 
+                # sets, and each this kind of set has only one component. 
                 counts, bipartites, num_components, components_graph = bipartite_graph
                 data.components_graph = components_graph
                 
@@ -150,54 +150,54 @@ class KCSetWLSubgraphs(Subgraphs):
     def extract_subgraphs(self, data):
         # assert self.k_max < data.num_nodes
         # k = max(2, min(self.k_max, data.num_nodes-1)) # deal with k_max (can later set it as a fraction of number of nodes)
-        k_tuples, bipartite_graph = extract_k_tuples(data.edge_index, data.num_nodes, self.k_max, self.k_min, self.stack, self.max_components, self.zero_init)
-        assert len(k_tuples) > 0
+        k_sets, bipartite_graph = extract_k_sets(data.edge_index, data.num_nodes, self.k_max, self.k_min, self.stack, self.max_components, self.zero_init)
+        assert len(k_sets) > 0
         # print(bipartite_graph.shape)
-        node_mask = data.edge_index.new_empty((len(k_tuples), data.num_nodes), dtype=torch.bool)
+        node_mask = data.edge_index.new_empty((len(k_sets), data.num_nodes), dtype=torch.bool)
         node_mask.fill_(False)
-        row_idx = torch.arange(len(k_tuples), device=data.edge_index.device)
-        row_idx = row_idx.unsqueeze(1).repeat(1, k_tuples.size(1)).reshape(-1)
-        node_mask[row_idx, k_tuples.reshape(-1)] = True
+        row_idx = torch.arange(len(k_sets), device=data.edge_index.device)
+        row_idx = row_idx.unsqueeze(1).repeat(1, k_sets.size(1)).reshape(-1)
+        node_mask[row_idx, k_sets.reshape(-1)] = True
         return node_mask, bipartite_graph
 
-def extract_k_tuples(edge_index, num_nodes, k, k_min, return_previous=False, max_components=1, zero_init=False):
+def extract_k_sets(edge_index, num_nodes, k, k_min, return_previous=False, max_components=1, zero_init=False):
     # assert k >=2
     sparse_adj = SparseTensor(row=edge_index[0], col=edge_index[1], sparse_sizes=(num_nodes, num_nodes))
-    k_tuples = torch.arange(num_nodes).unsqueeze(0)
+    k_sets = torch.arange(num_nodes).unsqueeze(0)
     num_components_k = torch.ones(num_nodes)
-    kminus1_to_k = torch.cat([k_tuples, k_tuples, k_tuples]) # self connection
+    kminus1_to_k = torch.cat([k_sets, k_sets, k_sets]) # self connection
     all_bipartites = []
     backtracks = []
     all_num_components = [] # TODO: currently only support kmin = 0 when considering multiple components!
     for i in range(k-1):
         if i == k_min:
-            counts = [k_tuples.size(1)]
-            all = k_tuples
+            counts = [k_sets.size(1)]
+            all = k_sets
             all_bipartite = kminus1_to_k
             all_num_components = [num_components_k]
 
-        kplus1_tuples, k_to_kplus1, num_components_k, backtrack_components_inc = extend_to_kplus1(k_tuples, num_components_k, sparse_adj, max_components) 
+        kplus1_sets, k_to_kplus1, num_components_k, backtrack_components_inc = extend_to_kplus1(k_sets, num_components_k, sparse_adj, max_components) 
         ##### deal with boundary cases 
-        if  kplus1_tuples is None:
-            kplus1_tuples = k_tuples
+        if  kplus1_sets is None:
+            kplus1_sets = k_sets
             k_to_kplus1 = kminus1_to_k
             break 
         ##############################
-        k_tuples, kminus1_to_k = kplus1_tuples, k_to_kplus1
+        k_sets, kminus1_to_k = kplus1_sets, k_to_kplus1
 
-        if i >= k_min: # >=3 tuples
-            all = torch.cat([torch.cat([all,all[0].unsqueeze(0)],dim=0), kplus1_tuples], dim=-1)
+        if i >= k_min: # >=3 sets
+            all = torch.cat([torch.cat([all,all[0].unsqueeze(0)],dim=0), kplus1_sets], dim=-1)
             update = torch.clone(k_to_kplus1)
             update[:2] += 1 + all_bipartite[:2].max(dim=1, keepdim=True)[0]
             # update = all_bipartite.max(dim=1, keepdim=True)[0] + k_to_kplus1 + 1
             all_bipartite = torch.cat([all_bipartite, update], dim=1) # this directly stack together
-            counts.append(kplus1_tuples.size(1))
+            counts.append(kplus1_sets.size(1))
             all_bipartites.append(k_to_kplus1)
             backtracks.append(backtrack_components_inc)
             all_num_components.append(num_components_k)
 
     if return_previous:
-        # now add another part to deal with tuples with num_components > 1
+        # now add another part to deal with sets with num_components > 1
         if k_min == 0 and max_components>1 and not zero_init:
             if len(backtracks) > 0:
                 components_graph = build_components_graph_parallel(backtracks, all_bipartites, all_num_components, max_components)
@@ -225,38 +225,38 @@ def extract_k_tuples(edge_index, num_nodes, k, k_min, return_previous=False, max
         return all.T[-counts.sum():], (counts, all_bipartites, all_num_components)
 
 
-def extend_to_kplus1(k_tuples, num_components_k, sparse_adj, max_components=1):
-    # k_tuples: k x num_tuples 
+def extend_to_kplus1(k_sets, num_components_k, sparse_adj, max_components=1):
+    # k_sets: k x num_sets 
     # sparse_adj: n x n
-    k, num_tuples = k_tuples.shape
+    k, num_sets = k_sets.shape
     n = sparse_adj.size(0)
-    col_idx = torch.arange(num_tuples).unsqueeze(0).repeat(k,1) 
+    col_idx = torch.arange(num_sets).unsqueeze(0).repeat(k,1) 
 
     # propagate
-    k_tuples_mask = torch.zeros(n, num_tuples) # n x num_tuples
-    k_tuples_mask[k_tuples.reshape(-1), col_idx.reshape(-1)] = 1
+    k_sets_mask = torch.zeros(n, num_sets) # n x num_sets
+    k_sets_mask[k_sets.reshape(-1), col_idx.reshape(-1)] = 1
     # 0:disconnected nodes, 1:direct neighbors, 2:used nodes
-    next_node_distance = (sparse_adj.matmul(k_tuples_mask) > 0).float()
-    next_node_distance[k_tuples.reshape(-1), col_idx.reshape(-1)] = 2 
+    next_node_distance = (sparse_adj.matmul(k_sets_mask) > 0).float()
+    next_node_distance[k_sets.reshape(-1), col_idx.reshape(-1)] = 2 
     
     # get direct neigbors: number of components will keep the same or reduce
-    next_node, tuple_idx = (next_node_distance==1).nonzero().T
+    next_node, set_idx = (next_node_distance==1).nonzero().T
     component_inc = torch.zeros(len(next_node)) # 0 means not increase or reduce
 
     if k >= max_components:
         # considering these disconnected nodes, but with number of components less than max_components
-        # first thing to do is to mask out these tuples with max_components part. 
+        # first thing to do is to mask out these sets with max_components part. 
         mask = (num_components_k >= max_components)
         next_node_distance[:, mask] = 3
 
     # disconnected noddes neighbors: number of components +1
-    next_disconnected_node, dis_tuple_idx = (next_node_distance==0).nonzero().T
+    next_disconnected_node, dis_set_idx = (next_node_distance==0).nonzero().T
     if len(next_disconnected_node) > 0:
         next_node = torch.cat([next_node, next_disconnected_node])
-        tuple_idx = torch.cat([tuple_idx, dis_tuple_idx])
+        set_idx = torch.cat([set_idx, dis_set_idx])
         component_inc = torch.cat([component_inc, torch.ones(len(next_disconnected_node))])
 
-    num_components_k = num_components_k[tuple_idx]
+    num_components_k = num_components_k[set_idx]
 
     #### remark here: when k>= max_components, inc can only be 0!! However this is not correct. 
     # So we need to add these kind of connections back from k >= max_components case. 
@@ -264,24 +264,24 @@ def extend_to_kplus1(k_tuples, num_components_k, sparse_adj, max_components=1):
     if len(next_node) == 0: ## happens if no expanding can be find 
         return None, None, None, None 
 
-    k_plus_1_tuples = torch.cat([k_tuples[:,tuple_idx], next_node.unsqueeze(0)], dim=0)
-    # print(k_plus_1_tuples.shape)
-    # order tuples 
-    k_plus_1_tuples, _ = torch.sort(k_plus_1_tuples, dim=0) # order along k dim
+    k_plus_1_sets = torch.cat([k_sets[:,set_idx], next_node.unsqueeze(0)], dim=0)
+    # print(k_plus_1_sets.shape)
+    # order sets 
+    k_plus_1_sets, _ = torch.sort(k_plus_1_sets, dim=0) # order along k dim
     # remove duplicated ones
-    k_plus_1_tuples, inverse = torch.unique(k_plus_1_tuples, dim=1, return_inverse=True)    
-    # print(k_plus_1_tuples.shape)
-    # construct connections between k tuples and k+1 tuples
-    next_tuple_idx = torch.arange(k_plus_1_tuples.size(1))[inverse]
-    k_to_kplus1_bipartite_graph = torch.stack([tuple_idx, next_tuple_idx, next_node]) # many to many bipartite
+    k_plus_1_sets, inverse = torch.unique(k_plus_1_sets, dim=1, return_inverse=True)    
+    # print(k_plus_1_sets.shape)
+    # construct connections between k sets and k+1 sets
+    next_set_idx = torch.arange(k_plus_1_sets.size(1))[inverse]
+    k_to_kplus1_bipartite_graph = torch.stack([set_idx, next_set_idx, next_node]) # many to many bipartite
 
-    # for every k+1 tuple (with >1 #components), backward to construct a mapping from some (any) k1 tuple to the k+1 tuple
-    # record (idx of the k+1 tuple, idx of the k tuple, )
+    # for every k+1 set (with >1 #components), backward to construct a mapping from some (any) k1 set to the k+1 set
+    # record (idx of the k+1 set, idx of the k set, )
     temp = torch.cat([k_to_kplus1_bipartite_graph, num_components_k.unsqueeze(0), component_inc.unsqueeze(0)]).T
     backtrack_components_inc = []
 
     #TODO: think how to remove the for loop
-    for i in range(k_plus_1_tuples.size(1)):
+    for i in range(k_plus_1_sets.size(1)):
         m = temp[inverse==i] 
         # first check whether exist inc = 1, choose this kind of first
         # if k < max_components:
@@ -298,16 +298,16 @@ def extend_to_kplus1(k_tuples, num_components_k, sparse_adj, max_components=1):
     backtrack_components_inc[:, -2] += backtrack_components_inc[:, -1]
     num_components_kplus1 = backtrack_components_inc[:, -2]
 
-    return k_plus_1_tuples, k_to_kplus1_bipartite_graph, num_components_kplus1, backtrack_components_inc[num_components_kplus1>1]   # k+1 x num_tuples
+    return k_plus_1_sets, k_to_kplus1_bipartite_graph, num_components_kplus1, backtrack_components_inc[num_components_kplus1>1]   # k+1 x num_sets
 
 def build_components_graph_parallel(backtracks, all_bipartities, all_num_components, max_components):
-    # get number of tuples at each level
-    all_num_tuples = [len(x) for x in all_num_components]
-    num_nodes = all_num_tuples[0] # number of nodes = number of 1-tuples
+    # get number of sets at each level
+    all_num_sets = [len(x) for x in all_num_components]
+    num_nodes = all_num_sets[0] # number of nodes = number of 1-sets
     # construct mapper 
-    all_mappers = torch.zeros(len(all_bipartities), max(all_num_tuples), num_nodes, dtype=torch.long) - 1 # TODO: change this to sparse matrix [to further improve speed]
+    all_mappers = torch.zeros(len(all_bipartities), max(all_num_sets), num_nodes, dtype=torch.long) - 1 # TODO: change this to sparse matrix [to further improve speed]
     for i, bipartite in enumerate(all_bipartities):
-        # step 1: filter bipartite to keep only component=1 tuples 
+        # step 1: filter bipartite to keep only component=1 sets 
         single_component_idx = (all_num_components[i]==1)[bipartite[0]] & (all_num_components[i+1]==1)[bipartite[1]]
         # construct the mapper
         bipartite = bipartite[:, single_component_idx]
@@ -322,7 +322,7 @@ def build_components_graph_parallel(backtracks, all_bipartities, all_num_compone
     for i, k_to_kplus1 in enumerate(backtracks):
         k_to_kplus1 = k_to_kplus1.long()
         # init memory for next info
-        kplus1_components_info = torch.zeros(all_num_tuples[i+1], max_components, 2, dtype=torch.long) - 1
+        kplus1_components_info = torch.zeros(all_num_sets[i+1], max_components, 2, dtype=torch.long) - 1
         single_comp_idx = (all_num_components[i+1] == 1).nonzero().squeeze()
         kplus1_components_info[single_comp_idx, 0, 0] = i+1
         kplus1_components_info[single_comp_idx, 0, 1] = single_comp_idx
@@ -366,9 +366,9 @@ def build_components_graph_parallel(backtracks, all_bipartities, all_num_compone
         k_components_info = kplus1_components_info
 
     # transform to edges
-    offsets = torch.cumsum(torch.tensor(all_num_tuples), dim=0)
+    offsets = torch.cumsum(torch.tensor(all_num_sets), dim=0)
     offsets = torch.cat([torch.zeros(1), offsets, torch.zeros(1)])
-    edges = torch.cat([offsets[x[:,:, 0]] + x[:,:, 1] for x in all_components_info]) # num_tuples x max_c
+    edges = torch.cat([offsets[x[:,:, 0]] + x[:,:, 1] for x in all_components_info]) # num_sets x max_c
 
     # filter out num_components = 1 case 
     nc = (edges!=-1).sum(-1)

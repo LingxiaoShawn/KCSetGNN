@@ -47,29 +47,26 @@ def set_cfg(cfg):
     # Model options
     # ------------------------------------------------------------------------ #
     cfg.model = CN()
-    # GNN type used, see core.model_utils.pyg_gnn_wrapper for all options
-    cfg.model.arch_type = 'KCSetGNN'  #[''SubgraphGNN', 'KCSetGNN', 'PPGN']
-    cfg.model.gnn_type = 'GINEConv' # change to list later
-    cfg.model.bgnn_type = 'Sequential'  # bipartite gnn propagation type
-    # Hidden size of the model
-    cfg.model.hidden_size = 128
-    # Number of gnn layers (doesn't include #MLPs)
-    cfg.model.num_layers = 4
-    cfg.model.num_inners = 2
-    # Pooling type for generaating graph/subgraph embedding from node embeddings
-    cfg.model.pools = ['add']    # multiple different aggregations, will be used by SetGNN to stablize training
-    cfg.model.half_step = False # bipartite propagation type 
+    cfg.model.arch_type = 'KCSetGNN'               # ['SubgraphGNN', 'KCSetGNN', 'PPGN']
+    cfg.model.gnn_type = 'GINEConv'                # GNN type used, see core.model_utils.pyg_gnn_wrapper for all options
+    cfg.model.bgnn_type = 'Sequential'             # [main param] bipartite gnn propagation type, Sequential or Parallel
+    
+    cfg.model.hidden_size = 128                    # hidden size of the model
+    cfg.model.num_layers = 4                       # [main param] number of bipartite message passing layers
+    cfg.model.num_inners = 2                       # [main param] number of base model layers
+    cfg.model.pools = ['add']                      # multiple different aggregations, will be used by SetGNN to stablize training
+    cfg.model.half_step = False                    # always be set to False
 
     # ------------------------------------------------------------------------ #
     # Subgraph options
     # ------------------------------------------------------------------------ #
     cfg.subgraph = CN()
     cfg.subgraph.type = 'kWL' # ['kWL', 'cluster', 'ego']
-    cfg.subgraph.kmax = 3
-    cfg.subgraph.kmin = 0
-    cfg.subgraph.stack = True
-    cfg.subgraph.num_components = 1
-    cfg.subgraph.zero_init = True # whether init multiple-components sets with 0
+    cfg.subgraph.kmax = 3             # [main param] parameter k in the paper
+    cfg.subgraph.kmin = 0             # current implementation doesn't support values other than 0 
+    cfg.subgraph.stack = True         # use (k,c) set or (k,c)(<=) set. Set to True will include sets with smaller size than kmax. 
+    cfg.subgraph.num_components = 1   # [main param] parameter c in the paper
+    cfg.subgraph.zero_init = True     # whether init multiple-components sets with 0
 
     return cfg
     

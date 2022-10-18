@@ -22,18 +22,18 @@ def create_dataset(cfg):
 
 def create_model(cfg):
     model = KCSetGNN(None, None, 
-                    nhid=cfg.model.hidden_size, 
-                    nout=1, 
-                    nlayer_intra=cfg.model.num_inners, 
-                    nlayer_inter=cfg.model.num_layers,
-                    gnn_type=cfg.model.gnn_type,
-                    bgnn_type=cfg.model.bgnn_type, 
-                    dropout=cfg.train.dropout, 
-                    res=True, 
-                    pools=cfg.model.pools,
-                    mlp_layers=2,
-                    num_bipartites=cfg.subgraph.kmax-1-cfg.subgraph.kmin if cfg.subgraph.stack is True else 1,
-                    half_step=cfg.model.half_step) # num_bipartites should remove min, now min=0
+                     nhid=cfg.model.hidden_size, 
+                     nout=1, 
+                     nlayer_intra=cfg.model.num_inners, 
+                     nlayer_inter=cfg.model.num_layers,
+                     gnn_type=cfg.model.gnn_type,
+                     bgnn_type=cfg.model.bgnn_type, 
+                     dropout=cfg.train.dropout, 
+                     res=True, 
+                     pools=cfg.model.pools,
+                     mlp_layers=2,
+                     num_bipartites=cfg.subgraph.kmax-1-cfg.subgraph.kmin if cfg.subgraph.stack is True else 1,
+                     half_step=cfg.model.half_step) # num_bipartites should remove min, now min=0
     return model
 
 def train(train_loader, model, optimizer, device, scaler):

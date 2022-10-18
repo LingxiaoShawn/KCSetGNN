@@ -48,7 +48,7 @@ if __name__ == '__main__':
     # get config 
     cfg.merge_from_file('train/config/mol.yaml')
     cfg = update_cfg(cfg)
-    cfg.device = 'cpu'
+    # cfg.device = 'cpu'
     evaluator = Evaluator(cfg.dataset)
 
     if cfg.dataset in ['ogbg-molesol', 'ogbg-molfreesolv', 'ogbg-mollipo']:
