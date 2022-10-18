@@ -1,0 +1,18 @@
+dataset: qm9
+num_workers: 12
+model:
+  half_step: False 
+  hidden_size: 128
+  num_layers: 2
+  num_inners: 4
+  pools: [add]
+subgraph:
+  stack: True
+  zero_init: True
+  num_components: 1
+  kmax: 2
+train:
+  lr_patience: 50
+  dropout: 0.
+  epochs: 310
+  batch_size: 100
