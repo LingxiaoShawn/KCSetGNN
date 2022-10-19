@@ -73,7 +73,7 @@ Please cite our paper if you use the code.
 @inproceedings{
     zhao2022a,
     title={A Practical, Progressively-Expressive {GNN}},
-    author={Lingxiao Zhao and Neil Shah and Leman Akoglu},
+    author={Lingxiao Zhao and Louis Härtel and Neil Shah and Leman Akoglu},
     booktitle={36th Conference on Neural Information Processing Systems},
     year={2022},
     url={https://openreview.net/forum?id=WBv9Z6qpA8x}
