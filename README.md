@@ -1,5 +1,5 @@
 # (k,c)(<=)-SetGNN
-Official code for [A Practical, Progressively-Expressive GNN (NeurIPS 2022)](https://www.example.com)
+Official code for [A Practical, Progressively-Expressive GNN (NeurIPS 2022)](https://arxiv.org/abs/2210.09521)
 
 
 ## Setup 
