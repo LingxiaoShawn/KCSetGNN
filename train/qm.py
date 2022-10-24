@@ -54,7 +54,7 @@ def create_model(cfg):
                     gnn_type=cfg.model.gnn_type, 
                     dropout=cfg.train.dropout, 
                     res=True)
-    if cfg.model.arch_type == 'kWLGNN':
+    if cfg.model.arch_type == 'KCSetGNN':
         model = KCSetGNN(1 if cfg.dataset=='qm7b' else 11, 
                          1 if cfg.dataset=='qm7b' else 4,  
                          nhid=cfg.model.hidden_size, 
