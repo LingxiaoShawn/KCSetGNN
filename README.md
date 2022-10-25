@@ -1,4 +1,4 @@
-# (k,c)(<=)-SetGNN
+# (k,c)(≤)-SetGNN
 Official code for [A Practical, Progressively-Expressive GNN (NeurIPS 2022)](https://arxiv.org/abs/2210.09521)
 
 
