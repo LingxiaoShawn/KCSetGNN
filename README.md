@@ -50,12 +50,12 @@ pip install matplotlib
 * `` core/data_utils/cfi.py`` contains implementataion of [CFI](https://people.cs.umass.edu/~immerman/pub/opt.pdf) graph construction. It is an important category of graphs for verifying k-WL expressivity. We open source it for others to use. There are two versions. One is the original and the other is from Martin Grohe's [paper](https://www.cambridge.org/core/services/aop-cambridge-core/content/view/848E4F828C3DAD6C3D4757B650513578/S0022481215000286a.pdf/pebble-games-and-linear-equations.pdf).
   
 
-## Run (k,c)(<=)SetGNN
+## Run (k,c)(≤)SetGNN
 ```
 python -m train.zinc model.num_layers 2 model.num_inners 4 subgraph.kmax 5 subgraph.num_components 1 model.bgnn_type 'Parallel'  device 0 
 ```
 
-## Run (k,c)(<=)SetGNN*
+## Run (k,c)(≤)SetGNN*
 ```
 python -m train.zinc model.num_layers 2 model.num_inners 4 subgraph.kmax 5 subgraph.num_components 1 model.bgnn_type 'Sequential'  device 0
 ```
