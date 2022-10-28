@@ -33,7 +33,7 @@ class DiscreteEncoder(nn.Module):
             x = x.unsqueeze(1)
         out = 0
         for i in range(x.size(1)):
-            out += self.embeddings[i](x[:, i])
+            out = out + self.embeddings[i](x[:, i])
         return out
 
 class MLP(nn.Module):
@@ -48,9 +48,9 @@ class MLP(nn.Module):
                                      for i in range(nlayer)])
         self.norms = nn.ModuleList([nn.BatchNorm1d(n_hid if i<nlayer-1 else nout) if with_norm else Identity()
                                      for i in range(nlayer)])
+
         self.nlayer = nlayer
         self.with_final_activation = with_final_activation
-        self.residual = (nin==nout) ## TODO: test whether need this
 
     def reset_parameters(self):
         for layer, norm in zip(self.layers, self.norms):
@@ -58,13 +58,9 @@ class MLP(nn.Module):
             norm.reset_parameters()
 
     def forward(self, x):
-        previous_x = x
         for i, (layer, norm) in enumerate(zip(self.layers, self.norms)):
             x = layer(x)
             if i < self.nlayer-1 or self.with_final_activation:
                 x = norm(x)
-                x = F.relu(x)  
-
-        # if self.residual:
-        #     x = x + previous_x  
+                x = F.relu(x) 
         return x 

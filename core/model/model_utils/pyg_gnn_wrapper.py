@@ -127,7 +127,7 @@ class GINEDegConv(gnn.MessagePassing):
 
     def forward(self, x, edge_index, edge_attr, batch=None):
         out, deg = self.propagate(edge_index, x=x, edge_attr=edge_attr)
-        out += (1+self.eps) * x
+        out = out + (1+self.eps) * x
         # out = torch.cat([out,deg], dim=-1)
         # out = torch.cat([out, deg, out*deg], dim=-1)
         

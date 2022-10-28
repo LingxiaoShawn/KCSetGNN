@@ -49,7 +49,7 @@ class GNN(nn.Module):
             x = F.relu(x)
             x = F.dropout(x, self.dropout, training=self.training)
             if self.res:
-                x += previous_x 
+                x = x + previous_x 
                 previous_x = x
 
         x = scatter(x, data.batch, dim=0, reduce='add')
@@ -135,7 +135,7 @@ class EdgeGNN(nn.Module):
             x = F.dropout(x, self.dropout, training=self.training)
             edge_attr = F.dropout(edge_attr, self.dropout, training=self.training)
             if self.res:
-                x += px
+                x = x + px
                 # edge_attr += pe 
                 px, pe = x, edge_attr
 

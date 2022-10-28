@@ -3,6 +3,7 @@ import time
 from core.log import config_logger
 from torch_geometric.loader import DataLoader
 from torch.optim.lr_scheduler import StepLR
+# torch.autograd.set_detect_anomaly(True)
 
 def run(cfg, create_dataset, create_model, train, test, evaluator=None, use_amp=False):
     if cfg.seed is not None:

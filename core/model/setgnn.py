@@ -125,7 +125,7 @@ class BaseGNN(nn.Module):
             x = F.relu(x)
             x = F.dropout(x, self.dropout, training=self.training)
             if self.res:
-                x += previous_x 
+                x = x + previous_x 
                 previous_x = x
 
         x = self.output_encoder(x)
@@ -177,6 +177,7 @@ class GraphToSubgraphs(nn.Module):
         # deal with sets with >1 number of components [TODO: currently only support add pooling]
         full_subgraphs = subgraphs.new_zeros((len(data.num_components), subgraphs.size(-1)))
         full_subgraphs[data.num_components==1] = subgraphs
+        
         if hasattr(data, 'components_graph'):
             # inference sets with multiple components
             # TODO: the current version is simple add which mimicing message passing GNNs, need to test more powerful set encoder

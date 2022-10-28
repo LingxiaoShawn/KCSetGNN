@@ -36,7 +36,7 @@ class BipartiteGNN(nn.Module):
             for k_to_kplus1 in bipartites_list[1:]:
                 # update = combined_bipartites.max(dim=1, keepdim=True)[0] + k_to_kplus1 + 1
                 update = torch.clone(k_to_kplus1)
-                update[:2] += 1 + combined_bipartites[:2].max(dim=1, keepdim=True)[0] #TODO: this is incorrect for empty case
+                update[:2] =  update[:2] + 1 + combined_bipartites[:2].max(dim=1, keepdim=True)[0] #TODO: this is incorrect for empty case
                 combined_bipartites = torch.cat([combined_bipartites, update], dim=1) 
         else:
             combined_xs, combined_batch, combined_bipartites = xs, k_batch, bipartites_list
@@ -45,6 +45,7 @@ class BipartiteGNN(nn.Module):
             combined_xs = combined_xs + F.dropout(layer(combined_xs, combined_batch, combined_bipartites, x), self.dropout, training=self.training)
 
         if self.type == 'Parallel':
+            xs = combined_xs.clone()
             for i in range(n + 1):
                 xs[k_batch==i] = combined_xs[combined_batch==i]
         else:
@@ -130,26 +131,29 @@ class SequentialLayer(nn.Module):
 
     def forward(self, xs, k_batch, bipartites_list, x=None): 
         # Backfward first: from right to left 
+        xs_out = xs.clone()
+        x_right = xs[k_batch == len(bipartites_list)]
         for i in reversed(range(len(bipartites_list))):
             edge_index = bipartites_list[i]
-            x_right = xs[k_batch == i+1]
             x_left = xs[k_batch == i]
             message = x_right[edge_index[1]]
-            # aggregated = scatter(message, edge_index[0], dim=0, dim_size=x_left.size(0), reduce=self.pooling)
             aggregated = generalized_scatter(message, edge_index[0], dim=0, dim_size=x_left.size(0), aggregators=self.pools)
-            xs[k_batch == i] = self.combine1[i](x_left, aggregated)
-    
+            x_right = self.combine1[i](x_left, aggregated)
+            xs_out[k_batch == i] = x_right
+
         if not self.half_step:
             # Then foward: from left to right
+            xs = xs_out.clone()
+            x_left = xs[k_batch == 0]
             for i in range(len(bipartites_list)):
                 edge_index = bipartites_list[i]
                 x_right = xs[k_batch == i+1]
-                x_left = xs[k_batch == i]
                 message = x_left[edge_index[0]]
                 # aggregated = scatter(message, edge_index[1], dim=0, dim_size=x_right.size(0), reduce=self.pooling)
                 aggregated = generalized_scatter(message, edge_index[1], dim=0, dim_size=x_right.size(0), aggregators=self.pools)
-                xs[k_batch == i+1] = self.combine2[i](x_right, aggregated)    
-        return xs
+                x_left = self.combine2[i](x_right, aggregated)
+                xs_out[k_batch == i+1] = x_left
+        return xs_out
 
 
 class SelfCombiner(nn.Module):
