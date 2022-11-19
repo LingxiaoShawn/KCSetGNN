@@ -47,7 +47,7 @@ def set_cfg(cfg):
     # Model options
     # ------------------------------------------------------------------------ #
     cfg.model = CN()
-    cfg.model.arch_type = 'KCSetGNN'               # ['SubgraphGNN', 'KCSetGNN', 'PPGN']
+    cfg.model.arch_type = 'KCSetGNN'               # ['SubgraphGNN', 'KCSetGNN', 'PPGN', 'GNN']
     cfg.model.gnn_type = 'GINEConv'                # GNN type used, see core.model_utils.pyg_gnn_wrapper for all options
     cfg.model.bgnn_type = 'Sequential'             # [main param] bipartite gnn propagation type, Sequential or Parallel
     

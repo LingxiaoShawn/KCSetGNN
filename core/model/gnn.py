@@ -44,7 +44,7 @@ class GNN(nn.Module):
 
         previous_x = 0#x
         for layer, norm in zip(self.convs, self.norms):
-            x = layer(x, data.edge_index, edge_attr)
+            x = layer(x, data.edge_index, edge_attr, data.batch)
             x = norm(x)
             x = F.relu(x)
             x = F.dropout(x, self.dropout, training=self.training)

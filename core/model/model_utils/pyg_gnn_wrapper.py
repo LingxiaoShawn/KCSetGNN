@@ -16,6 +16,23 @@ class GINEConv(nn.Module):
     def forward(self, x, edge_index, edge_attr, batch=None):
         edge_attr = self.edge_linear(edge_attr) # TODO: mark the update
         return self.layer(x, edge_index, edge_attr)
+    
+class SetConv(nn.Module):
+    def __init__(self, nin, nout):
+        super().__init__()
+        self.nn = MLP(nin, nout, 2, False)
+        self.linear = nn.Linear(nin, nin, bias=False)
+        self.bn = nn.BatchNorm1d(nin)
+    def reset_parameters(self):
+        self.nn.reset_parameters()
+        self.bn.reset_parameters()
+    def forward(self, x, edge_index, edge_attr, batch):
+        summation = scatter(x, batch)
+        summation = self.linear(summation)
+        summation = self.bn(summation)
+        summation = F.relu(summation)
+        return self.nn(x + summation[batch])
+
 
 class GATConv(nn.Module):
     def __init__(self, nin, nout, bias=True, nhead=1):
