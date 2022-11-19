@@ -18,7 +18,7 @@ class GINEConv(nn.Module):
         return self.layer(x, edge_index, edge_attr)
     
 class SetConv(nn.Module):
-    def __init__(self, nin, nout):
+    def __init__(self, nin, nout, bias=True):
         super().__init__()
         self.nn = MLP(nin, nout, 2, False)
         self.linear = nn.Linear(nin, nin, bias=False)
