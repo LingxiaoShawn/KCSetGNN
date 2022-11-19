@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch_geometric.nn as gnn
 from core.model.model_utils.elements import MLP
 import torch.nn.functional as F
+from torch_scatter import scatter
+from core.model.model_utils.generalized_scatter import generalized_scatter
 
 class GINEConv(nn.Module):
     def __init__(self, nin, nout, bias=True):
@@ -27,7 +29,8 @@ class SetConv(nn.Module):
         self.nn.reset_parameters()
         self.bn.reset_parameters()
     def forward(self, x, edge_index, edge_attr, batch):
-        summation = scatter(x, batch)
+        # print(x.shape, batch.shape, batch.max())
+        summation = scatter(x, batch, dim=0)
         summation = self.linear(summation)
         summation = self.bn(summation)
         summation = F.relu(summation)
