@@ -3,13 +3,17 @@ from core.config import cfg, update_cfg
 from core.train import run 
 from core.model.setgnn import KCSetGNN
 from core.model.gnn import GNN
+from core.model.ppgn import PPGN
 from torch_geometric.datasets import ZINC
 from core.transform import KCSetWLSubgraphs
 
 
 def create_dataset(cfg): 
     torch.set_num_threads(cfg.num_workers)
-    transform = transform_eval = KCSetWLSubgraphs(cfg.subgraph.kmax, cfg.subgraph.stack, cfg.subgraph.kmin, cfg.subgraph.num_components, zero_init=cfg.subgraph.zero_init)
+    if cfg.model.arch_type == 'KCSetGNN':
+        transform = transform_eval = KCSetWLSubgraphs(cfg.subgraph.kmax, cfg.subgraph.stack, cfg.subgraph.kmin, cfg.subgraph.num_components, zero_init=cfg.subgraph.zero_init)
+    else:
+        transform = transform_eval = None
     root = 'data/ZINC'
     train_dataset = ZINC(root, subset=True, split='train', transform=transform)
     val_dataset = ZINC(root, subset=True, split='val', transform=transform_eval) 
@@ -44,6 +48,9 @@ def create_model(cfg):
                     gnn_type=cfg.model.gnn_type, 
                     dropout=cfg.train.dropout, 
                     pooling='add')
+
+    if cfg.model.arch_type == 'PPGN':
+        model = PPGN(None, None, nhid=cfg.model.hidden_size, nout=1, nlayer=cfg.model.num_layers)
 
     return model
 

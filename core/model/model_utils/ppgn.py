@@ -12,7 +12,7 @@ class PPGNLayer(nn.Module):
         self.reg_blocks = nn.ModuleList([RegularBlock(nin, nin, depth_of_mlp) for i in range(nlayer)])
         # Second part
         # self.norm = Identity() # 
-        # self.norm = nn.BatchNorm1d(2*nin)
+        # self.norm = nn.BatchNorm1d(3*nin)
         self.norm = Identity()
         self.output_encoder = MLP(3*nin, nout, nlayer=depth_of_mlp, with_final_activation=True)
         # self.output_encoder = MLP(2*nin, nout, nlayer=depth_of_mlp, with_final_activation=True)
