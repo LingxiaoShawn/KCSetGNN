@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from core.model.model_utils.elements import MLP, Identity
 from torch_scatter import scatter
-from core.model.model_utils.generalized_scatter import generalized_scatter
+from core.model.model_utils.generalized_scatter import generalized_scatter, NormedScatter
 from torch_geometric.nn.inits import reset
 
 class BipartiteGNN(nn.Module):
@@ -122,12 +122,17 @@ class SequentialLayer(nn.Module):
         # later can also test don't share parameters
         self.pools = pools
         self.combine1 = nn.ModuleList(SelfCombiner(nhid, mlp_num_layers, second_nhid=len(pools)*nhid) for _ in range(num_bipartites))
-        self.combine2 = nn.ModuleList(SelfCombiner(nhid, mlp_num_layers, second_nhid=len(pools)*nhid) for _ in range(num_bipartites))    
+        self.scatter1 = nn.ModuleList(NormedScatter(nhid, pools) for _ in range(num_bipartites))
+        self.combine2 = nn.ModuleList(SelfCombiner(nhid, mlp_num_layers, second_nhid=len(pools)*nhid) for _ in range(num_bipartites))  
+        self.scatter2 = nn.ModuleList(NormedScatter(nhid, pools) for _ in range(num_bipartites))  
         self.half_step = half_step
     def reset_parameters(self):
         for c1,c2 in zip(self.combine1, self.combine2):
             c1.reset_parameters()
             c2.reset_parameters()
+        for n1,n2 in zip(self.scatter1, self.scatter2):
+            n1.reset_parameters()
+            n2.reset_parameters()
 
     def forward(self, xs, k_batch, bipartites_list, x=None): 
         # Backfward first: from right to left 
@@ -138,6 +143,7 @@ class SequentialLayer(nn.Module):
             x_left = xs[k_batch == i]
             message = x_right[edge_index[1]]
             aggregated = generalized_scatter(message, edge_index[0], dim=0, dim_size=x_left.size(0), aggregators=self.pools)
+            # aggregated = self.scatter1[i](message, edge_index[0], dim_size=x_left.size(0))
             x_right = self.combine1[i](x_left, aggregated)
             xs_out[k_batch == i] = x_right
 
@@ -149,8 +155,8 @@ class SequentialLayer(nn.Module):
                 edge_index = bipartites_list[i]
                 x_right = xs[k_batch == i+1]
                 message = x_left[edge_index[0]]
-                # aggregated = scatter(message, edge_index[1], dim=0, dim_size=x_right.size(0), reduce=self.pooling)
                 aggregated = generalized_scatter(message, edge_index[1], dim=0, dim_size=x_right.size(0), aggregators=self.pools)
+                # aggregated = self.scatter2[i](message, edge_index[1], dim_size=x_right.size(0))
                 x_left = self.combine2[i](x_right, aggregated)
                 xs_out[k_batch == i+1] = x_left
         return xs_out
